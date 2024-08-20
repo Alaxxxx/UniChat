@@ -10,6 +10,7 @@ using UnityEngine;
 
 namespace UniChat.Editor
 {
+    [InitializeOnLoad]
     public sealed class ChatEditorWindow : EditorWindow
     {
         private const string TempChatLogFilePath = "Temp/UniChat_ChatLog.txt";
@@ -17,15 +18,13 @@ namespace UniChat.Editor
         private string _chatInput = "";
         private string _chatLog = "";
         private Vector2 _scrollPosition = Vector2.zero;
-        private TcpClient _client;
-        private NetworkStream _networkStream;
-        private CancellationTokenSource _cancellationTokenSource;
-        private bool _connected;
+        private static TcpClient _client;
+        private static NetworkStream _networkStream;
+        private static CancellationTokenSource _cancellationTokenSource;
+        private static bool _connected;
         private string _ipAddress = "IP Address";
-        #pragma warning disable 414
-        private bool _isServer = true;
-        #pragma warning restore 414
-        private TcpListener _listener;
+        private static bool _isServer;
+        private static TcpListener _listener;
         private string _username = "Username";
 
         // Colors for chat messages
@@ -38,6 +37,25 @@ namespace UniChat.Editor
         private const string ChunkSizePrefKey = "UniChat_ChunkSize";
         private const string UsernamePrefKey = "UniChat_Username";
 
+        static ChatEditorWindow()
+        {
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            EditorApplication.update += OnEditorUpdate;
+        }
+
+        private static void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.ExitingEditMode || state == PlayModeStateChange.ExitingPlayMode)
+            {
+                Disconnect();
+            }
+        }
+
+        private static void OnEditorUpdate()
+        {
+            // Perform any necessary updates that are required even during editor update.
+        }
+
         [MenuItem("Tools/UniChat")]
         public static void ShowWindow()
         {
@@ -46,6 +64,7 @@ namespace UniChat.Editor
 
         private void OnEnable()
         {
+            EditorApplication.LockReloadAssemblies();
             LoadChatLog();
             LoadPreferences();
         }
@@ -55,6 +74,7 @@ namespace UniChat.Editor
             SaveChatLog();
             SavePreferences();
             Disconnect();
+            EditorApplication.UnlockReloadAssemblies();
         }
 
         private void OnGUI()
@@ -330,7 +350,7 @@ namespace UniChat.Editor
             }
         }
 
-        private void Disconnect()
+        private static void Disconnect()
         {
             try
             {
@@ -339,8 +359,7 @@ namespace UniChat.Editor
                 _networkStream?.Close();
                 _client?.Close();
                 _listener?.Stop();
-                AppendMessage("Disconnected...");
-                Repaint();
+                Debug.Log("Disconnected...");
             }
             catch (Exception ex)
             {
